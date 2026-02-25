@@ -23,7 +23,7 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
     const formData = new FormData();
     formData.append("audio_file", file);
     try {
-      const res = await axios.post("http://localhost:8000", formData);
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/`, formData);
       setResult(res.data);
     } catch (err) {
       console.error(err);
