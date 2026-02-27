@@ -1,32 +1,130 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { HelpCircle } from "lucide-react";
+import { VideoPlayer } from "./VideoPlayer";
 
 interface DemoSectionProps {
   file: File | null;
   setFile: (file: File | null) => void;
 }
 
+interface TooltipPosition {
+  top: number;
+  left: number;
+}
+
+const Tooltip = ({ text }: { text: string }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [position, setPosition] = useState<TooltipPosition>({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLSpanElement>(null);
+
+  const handleMouseEnter = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.top - 40,
+        left: rect.left + rect.width / 2,
+      });
+      setIsVisible(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsVisible(false);
+  };
+
+  return (
+    <span
+      ref={triggerRef}
+      className="inline-flex items-center"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <HelpCircle className="w-4 h-4 text-gray-400 hover:text-cyan-600 transition-colors cursor-help" />
+
+      {isVisible && (
+        <span
+          className="fixed px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-100 transition-opacity z-50 pointer-events-none"
+          style={{
+            top: `${position.top}px`,
+            left: `${position.left}px`,
+            transform: "translateX(-50%)",
+            display: "inline-block",
+          }}
+        >
+          {text}
+          <span
+            className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"
+            style={{
+              left: "50%",
+              display: "block",
+            }}
+          ></span>
+        </span>
+      )}
+    </span>
+  );
+};
+
 export function DemoSection({ file, setFile }: DemoSectionProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState("");
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
   useEffect(() => {
     setResult(null);
   }, [file]);
 
+  const validateFile = (selectedFile: File): boolean => {
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      const sizeMB = (selectedFile.size / (1024 * 1024)).toFixed(1);
+      setError(`File too large. Maximum size is 5MB (your file: ${sizeMB}MB)`);
+      return false;
+    }
+    setError("");
+    return true;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (validateFile(selectedFile)) {
+        setFile(selectedFile);
+        setResult(null);
+      } else {
+        setFile(null);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!file) return;
+    
+    if (!validateFile(file)) {
+      return;
+    }
+
     setLoading(true);
+    setError("");
     const formData = new FormData();
     formData.append("audio_file", file);
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/`, formData);
+      //const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/`, formData);
+      const res = await axios.post(`http://localhost:8000/`, formData);
       setResult(res.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      if (err.response?.status === 429) {
+        setError("Too many requests. Please wait a few minutes before trying again.");
+      } else if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else {
+        setError("Detection failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -35,10 +133,10 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
   const isReal = result?.predicted_label === "bonafide";
 
   return (
-    <section id="demo" className="py-20 bg-[#f4f4f4]">
+    <section id="demo" className="py-16 md:py-24 bg-white">
       <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 px-6">
         <div>
-          <h3 className="text-3xl font-bold mb-6">Free Deepfake Voice Detection</h3>
+          <h3 className="text-4xl md:text-5xl font-bold mb-6 text-cyan-600">Free Deepfake Voice Detection</h3>
           <p className="text-gray-600 mb-6">
             Test our detection engine at no cost - Free trial available until May 31, 2026.
           </p>
@@ -51,7 +149,7 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
                 type="file"
                 accept="audio/*"
                 className="hidden"
-                onChange={(e) => { setFile(e.target.files?.[0] || null); setResult(null); }}
+                onChange={handleFileChange}
               />
               {file ? (
                 <>
@@ -66,7 +164,12 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
                     <rect x="35" y="9"  width="3" height="6"  rx="1.5" fill="#22c55e"/>
                   </svg>
                   <span className="text-sm font-semibold text-green-600 text-center break-all">{file.name}</span>
-                  <span className="text-xs text-gray-400">{(file.size / 1024).toFixed(1)} KB · Click to change</span>
+                  <span className="text-xs text-gray-400">
+                    {file.size > 1024 * 1024 
+                      ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` 
+                      : `${(file.size / 1024).toFixed(1)} KB`} 
+                    · Click to change
+                  </span>
                 </>
               ) : (
                 <>
@@ -79,10 +182,19 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
               )}
             </label>
 
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                <svg className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={!file || loading}
-              className="py-3.5 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="py-3.5 bg-black hover:bg-gray-800 cursor-pointer text-white rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -110,6 +222,14 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
                   <div>
                     <p className="font-bold text-base" style={{ color: isReal ? "#16a34a" : "#dc2626" }}>
                       {isReal ? "Real Voice — Bonafide" : "Deepfake Detected — Spoofed"}
+                      <span className="ml-2">
+                        <Tooltip 
+                          text={isReal 
+                            ? "This audio is genuine human speech, not artificially synthesized" 
+                            : "This audio is identified as synthetically generated or manipulated using AI"
+                          } 
+                        />
+                      </span>
                     </p>
                     <p className="text-xs text-gray-400 truncate max-w-xs">{result.filename}</p>
                   </div>
@@ -118,7 +238,10 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
                 <div className="space-y-3">
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-500 font-medium">Bonafide (Real)</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-500 font-medium">Bonafide (Real)</span>
+                        <Tooltip text="Probability that this is real, authentic human speech" />
+                      </div>
                       <span className="font-semibold text-gray-700">{(result.bonafide_prob * 100).toFixed(1)}%</span>
                     </div>
                     <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
@@ -131,7 +254,10 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
 
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-500 font-medium">Spoof (Fake)</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-500 font-medium">Spoof (Fake)</span>
+                        <Tooltip text="Probability that this is spoofed, synthetic, or AI-generated audio" />
+                      </div>
                       <span className="font-semibold text-gray-700">{(result.spoof_prob * 100).toFixed(1)}%</span>
                     </div>
                     <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
@@ -160,8 +286,8 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
             )}
           </div>
         </div>
-        <div className="bg-white rounded-2xl shadow-lg h-80 flex items-center justify-center text-gray-400">
-          Video Demo Placeholder
+        <div className="h-80">
+          <VideoPlayer />
         </div>
       </div>
     </section>

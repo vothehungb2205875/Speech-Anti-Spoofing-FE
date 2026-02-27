@@ -9,31 +9,31 @@ export function TimelineSection() {
   ];
 
   return (
-    <section id="timeline" className="py-20 bg-white">
-      <div className="max-w-6xl mx-auto px-4">
-        <h3 className="text-3xl font-bold mb-4 text-center">Development Roadmap</h3>
-        <p className="text-center text-gray-600 mb-12">Project milestones from ideation to service testing</p>
+    <section id="timeline" className="py-12 md:py-16 bg-gray-100">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <h3 className="text-2xl sm:text-3xl font-bold mb-3 md:mb-4 text-center">Development Roadmap</h3>
+        <p className="text-center text-sm sm:text-base text-gray-600 mb-8 md:mb-12">Project milestones from ideation to service testing</p>
 
-        {/* Timeline Container */}
-        <div className="relative">
-          {/* Connecting Line */}
-          <div className="absolute top-8 left-0 right-0 h-1 bg-gradient-to-r from-blue-200 via-cyan-300 to-blue-200" style={{ transformOrigin: "left" }}></div>
+        {/* Timeline Container with custom scrollbar on mobile */}
+        <div className="relative overflow-x-auto md:overflow-visible -mx-4 px-4 md:mx-0 md:px-0 timeline-scroll">
+          {/* Connecting Line - Hidden on mobile, visible on md+ */}
+          <div className="hidden md:block absolute top-8 left-0 right-0 h-1 bg-gradient-to-r from-blue-200 via-cyan-300 to-blue-200" style={{ transformOrigin: "left" }}></div>
 
           {/* Timeline Items */}
-          <div className="flex justify-between gap-4 relative z-10">
+          <div className="flex justify-between gap-2 md:gap-4 relative z-10 min-w-max md:min-w-full">
             {milestones.map((milestone, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
+              <div key={index} className="flex-shrink-0 w-28 md:flex-1 md:flex-shrink md:w-auto flex flex-col items-center">
                 {/* Timeline Node */}
                 <div
-                  className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-all duration-300 ${
+                  className={`w-12 md:w-16 h-12 md:h-16 rounded-full flex items-center justify-center mb-3 md:mb-6 transition-all duration-300 ${
                     milestone.isActive
                       ? "bg-cyan-500 shadow-lg shadow-cyan-500/50 scale-110"
                       : "bg-white border-4 border-blue-300 hover:border-cyan-400"
                   }`}
                 >
-                  <div className={`text-center font-bold text-sm ${milestone.isActive ? "text-white" : "text-blue-500"}`}>
+                  <div className={`text-center font-bold text-xs md:text-sm ${milestone.isActive ? "text-white" : "text-blue-500"}`}>
                     {milestone.month.split("/")[0]}
-                    <div className="text-xs">
+                    <div className="text-xs md:text-xs">
                       {milestone.month.split("/")[1]}
                     </div>
                   </div>
@@ -41,7 +41,7 @@ export function TimelineSection() {
 
                 {/* Milestone Info */}
                 <div className="text-center">
-                  <h4 className={`font-bold text-sm mb-1 ${milestone.isActive ? "text-cyan-600" : "text-gray-700"}`}>
+                  <h4 className={`font-bold text-xs md:text-sm mb-1 ${milestone.isActive ? "text-cyan-600" : "text-gray-700"}`}>
                     {milestone.title}
                   </h4>
                   <p className={`text-xs ${milestone.isActive ? "text-cyan-500" : "text-gray-500"}`}>

@@ -7,7 +7,7 @@ import { DownArrow } from "./DownArrow";
 export function StatsSection() {
   const scrollTo = useScrollTo();
   return (
-    <section id="stats" className="py-20 bg-white overflow-hidden">
+    <section id="stats" className="py-12 md:py-16 bg-white overflow-hidden">
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-14">
           <p className="text-xs font-semibold tracking-[0.2em] text-cyan-500 uppercase mb-3">Every Minute of Every Day</p>

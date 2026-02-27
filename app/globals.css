@@ -14,3 +14,34 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Custom scrollbar for timeline and scroll containers */
+.timeline-scroll::-webkit-scrollbar,
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.timeline-scroll::-webkit-scrollbar-track,
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #06b6d4 0%, #0891b2 100%);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb:hover,
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #22d3ee 0%, #06b6d4 100%);
+}
+
+/* Firefox scrollbar */
+.timeline-scroll,
+.custom-scrollbar {
+  scrollbar-color: rgba(34, 211, 238, 0.6) rgba(255, 255, 255, 0.05);
+  scrollbar-width: thin;
+}
