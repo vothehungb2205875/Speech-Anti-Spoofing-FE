@@ -34,7 +34,7 @@ export default function RequestDemoPage() {
     try {
       // Send to backend if needed
       // const response = await axios.post("http://localhost:8000/request-demo", formData);
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/`, formData);
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/request-demo`, formData);
 
       setSubmitted(true);
       setFormData({ fullName: "", email: "", company: "", useCase: "", message: "" });
