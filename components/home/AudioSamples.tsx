@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface AudioSample {
   id: number;
@@ -49,10 +49,41 @@ const audioTabs: AudioTab[] = [
 
 export function AudioSamples() {
   const audioRefs = useRef<{ [key: number]: HTMLAudioElement | null }>({});
+  const progressRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   const [activeTab, setActiveTab] = useState(1);
   const [isPlaying, setIsPlaying] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState<{ [key: number]: number }>({});
   const [duration, setDuration] = useState<{ [key: number]: number }>({});
+  const [isDragging, setIsDragging] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging === null) return;
+      
+      const progressBar = progressRefs.current[isDragging];
+      const audio = audioRefs.current[isDragging];
+      
+      if (progressBar && audio) {
+        const rect = progressBar.getBoundingClientRect();
+        const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        audio.currentTime = percent * (duration[isDragging] || 0);
+        setCurrentTime((prev) => ({ ...prev, [isDragging]: audio.currentTime }));
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(null);
+    };
+
+    if (isDragging !== null) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDragging, duration]);
 
   const handlePlay = (id: number) => {
     const audio = audioRefs.current[id];
@@ -85,16 +116,28 @@ export function AudioSamples() {
 
   const handleEnded = (id: number) => {
     setIsPlaying(null);
-    setCurrentTime((prev) => ({ ...prev, [id]: 0 }));
+    // Set to full duration first to show 100% on progress bar
+    setCurrentTime((prev) => ({ ...prev, [id]: duration[id] || 0 }));
+    // Reset after a short delay to show completion
+    setTimeout(() => {
+      setCurrentTime((prev) => ({ ...prev, [id]: 0 }));
+    }, 500);
   };
 
   const handleProgressClick = (id: number, e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRefs.current[id];
     if (audio) {
       const rect = e.currentTarget.getBoundingClientRect();
-      const percent = (e.clientX - rect.left) / rect.width;
+      const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       audio.currentTime = percent * (duration[id] || 0);
+      setCurrentTime((prev) => ({ ...prev, [id]: audio.currentTime }));
     }
+  };
+
+  const handleProgressMouseDown = (id: number, e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(id);
+    handleProgressClick(id, e);
   };
 
   const formatTime = (time: number) => {
@@ -199,11 +242,17 @@ export function AudioSamples() {
                         </div>
 
                         <div
+                          ref={(el) => {
+                            if (el) progressRefs.current[sample.id] = el;
+                          }}
+                          onMouseDown={(e) => handleProgressMouseDown(sample.id, e)}
                           onClick={(e) => handleProgressClick(sample.id, e)}
-                          className="w-full h-2 bg-gray-200 rounded-full cursor-pointer overflow-hidden hover:h-3 transition-all"
+                          className={`w-full h-2 bg-gray-200 rounded-full cursor-pointer overflow-hidden transition-all ${
+                            isDragging === sample.id ? "h-3" : "hover:h-3"
+                          }`}
                         >
                           <div
-                            className="h-full bg-black transition-all duration-100"
+                            className="h-full bg-black"
                             style={{
                               width: duration[sample.id] ? `${((currentTime[sample.id] || 0) / duration[sample.id]) * 100}%` : "0%",
                             }}
