@@ -1,5 +1,3 @@
-"use client";
-
 interface DownArrowProps {
   className?: string;
   animate?: boolean;

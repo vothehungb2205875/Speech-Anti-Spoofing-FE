@@ -1,4 +1,9 @@
+"use client";
+
+import { useIntersectionAnimation } from "@/hooks/useIntersectionAnimation";
+
 export function TimelineSection() {
+  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
   const milestones = [
     { month: "12/2025", title: "Ideation", description: "Conceptualizing the project vision", isActive: false },
     { month: "1/2026", title: "Research Studies", description: "Reviewing existing research and frameworks", isActive: false },
@@ -10,9 +15,30 @@ export function TimelineSection() {
 
   return (
     <section id="timeline" className="py-12 md:py-16 bg-gray-100">
+      <style>{`
+        .timeline-scroll::-webkit-scrollbar {
+          height: 8px;
+        }
+        .timeline-scroll::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.1);
+        }
+        .timeline-scroll::-webkit-scrollbar-thumb {
+          background: #000;
+          border-radius: 4px;
+        }
+        .timeline-scroll::-webkit-scrollbar-thumb:hover {
+          background: #333;
+        }
+        .timeline-scroll {
+          scrollbar-color: #000 rgba(0, 0, 0, 0.1);
+          scrollbar-width: thin;
+        }
+      `}</style>
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <h3 className="text-2xl sm:text-3xl font-bold mb-3 md:mb-4 text-center">Development Roadmap</h3>
-        <p className="text-center text-sm sm:text-base text-gray-600 mb-8 md:mb-12">Project milestones from ideation to service testing</p>
+        <div ref={titleRef} className={titleVisible ? "animate-fade-in-up" : "opacity-0"}>
+          <h3 className="text-2xl sm:text-3xl font-bold mb-3 md:mb-4 text-center">Development Roadmap</h3>
+          <p className="text-center text-sm sm:text-base text-gray-600 mb-8 md:mb-12">Project milestones from ideation to service testing</p>
+        </div>
 
         {/* Timeline Container with custom scrollbar on mobile */}
         <div className="relative overflow-x-auto md:overflow-visible -mx-4 px-4 md:mx-0 md:px-0 timeline-scroll">

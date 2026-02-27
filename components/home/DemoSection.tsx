@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useIntersectionAnimation } from "@/hooks/useIntersectionAnimation";
 import axios from "axios";
 import { HelpCircle } from "lucide-react";
 import { VideoPlayer } from "./VideoPlayer";
@@ -69,16 +70,31 @@ const Tooltip = ({ text }: { text: string }) => {
 };
 
 export function DemoSection({ file, setFile }: DemoSectionProps) {
+  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingValid, setIsDraggingValid] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const VALID_AUDIO_TYPES = ["audio/mpeg", "audio/wav", "audio/flac", "audio/mp4", "audio/ogg", "audio/webm"];
+  const VALID_EXTENSIONS = [".mp3", ".wav", ".flac", ".m4a", ".ogg"];
 
   useEffect(() => {
     setResult(null);
   }, [file]);
 
   const validateFile = (selectedFile: File): boolean => {
+    const fileName = selectedFile.name.toLowerCase();
+    const hasValidExtension = VALID_EXTENSIONS.some(ext => fileName.endsWith(ext));
+    const hasValidType = VALID_AUDIO_TYPES.includes(selectedFile.type);
+
+    if (!hasValidExtension && !hasValidType) {
+      setError("Invalid file format. Please use MP3, WAV, FLAC, M4A, or OGG");
+      return false;
+    }
+
     if (selectedFile.size > MAX_FILE_SIZE) {
       const sizeMB = (selectedFile.size / (1024 * 1024)).toFixed(1);
       setError(`File too large. Maximum size is 5MB (your file: ${sizeMB}MB)`);
@@ -91,6 +107,76 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
+      if (validateFile(selectedFile)) {
+        setFile(selectedFile);
+        setResult(null);
+      } else {
+        setFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles.length > 0) {
+      const selectedFile = droppedFiles[0];
+      if (validateFile(selectedFile)) {
+        setFile(selectedFile);
+        setResult(null);
+      } else {
+        setFile(null);
+      }
+    }
+    setIsDragging(false);
+  };
+
+  const handleSectionDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    
+    // Check if files are being dragged
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDraggingValid(true);
+      e.dataTransfer.dropEffect = 'copy';
+    } else {
+      setIsDraggingValid(false);
+      e.dataTransfer.dropEffect = 'none';
+    }
+  };
+
+  const handleSectionDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+      setIsDraggingValid(true);
+    }
+  };
+
+  const handleSectionDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    setIsDraggingValid(true);
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles.length > 0) {
+      const selectedFile = droppedFiles[0];
       if (validateFile(selectedFile)) {
         setFile(selectedFile);
         setResult(null);
@@ -133,10 +219,35 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
   const isReal = result?.predicted_label === "bonafide";
 
   return (
-    <section id="demo" className="py-16 md:py-24 bg-white">
+    <section 
+      id="demo" 
+      className="py-16 md:py-24 bg-white relative"
+      onDragOver={handleSectionDragOver}
+      onDragLeave={handleSectionDragLeave}
+      onDrop={handleSectionDrop}
+    >
+      {/* Global cursor overlay during drag */}
+      {isDragging && (
+        <div 
+          className="fixed inset-0 z-50 pointer-events-none"
+          style={{ cursor: isDraggingValid ? "copy" : "not-allowed" }}
+        />
+      )}
+      
+      {isDragging && isDraggingValid && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center pointer-events-none">
+          <div className="bg-white rounded-2xl p-8 text-center shadow-2xl">
+            <svg className="w-16 h-16 text-cyan-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+            </svg>
+            <p className="text-lg font-semibold text-gray-800">Drop your audio file here</p>
+            <p className="text-sm text-gray-500 mt-1">MP3 · WAV · FLAC · M4A · OGG</p>
+          </div>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 px-6">
         <div>
-          <h3 className="text-4xl md:text-5xl font-bold mb-6 text-cyan-600">Free Deepfake Voice Detection</h3>
+          <h3 ref={titleRef} className={`text-4xl md:text-5xl font-bold mb-6 text-cyan-600 ${titleVisible ? "animate-fade-in-up" : "opacity-0"}`}>Free Deepfake Voice Detection</h3>
           <p className="text-gray-600 mb-6">
             Test our detection engine at no cost - Free trial available until May 31, 2026.
           </p>
@@ -144,8 +255,12 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
             <label
               className="border-2 border-dashed rounded-xl p-6 cursor-pointer flex flex-col items-center gap-2 bg-white transition-colors"
               style={{ borderColor: file ? "#22c55e" : "#d1d5db" }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="audio/*"
                 className="hidden"

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useIntersectionAnimation } from "@/hooks/useIntersectionAnimation";
 import { AudioSamples } from "./AudioSamples";
 import { DollarSign, Shield, Heart, Film, Scale, Briefcase, X, ExternalLink } from "lucide-react";
 
 export function AboutSection() {
+  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const industriesData = [
@@ -61,7 +63,7 @@ export function AboutSection() {
     <section id="about" className="py-12 md:py-16 bg-gray-100">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8">
         {/* Section Title */}
-        <div className="text-center mb-12 md:mb-14">
+        <div ref={titleRef} className={`text-center mb-12 md:mb-14 ${titleVisible ? "animate-fade-in-up" : "opacity-0"}`}>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 mb-3 md:mb-4">
             Understanding Speech Deepfakes
           </h2>

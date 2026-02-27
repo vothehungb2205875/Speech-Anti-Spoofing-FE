@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useIntersectionAnimation } from "@/hooks/useIntersectionAnimation";
 
 export function FAQSection() {
+  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const faqs = [
@@ -52,7 +54,7 @@ export function FAQSection() {
     <section id="faq" className="py-12 md:py-16 bg-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8">
         {/* Section Title */}
-        <div className="text-center mb-12 md:mb-16">
+        <div ref={titleRef} className={`text-center mb-12 md:mb-16 ${titleVisible ? "animate-fade-in-up" : "opacity-0"}`}>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 mb-3 md:mb-4">
             Frequently Asked Questions
           </h2>

@@ -1,3 +1,5 @@
+"use client";
+
 export function DragOverlay({ isDragging }: { isDragging: boolean }) {
   return (
     <div
