@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 const DOMO_STATS = [
   { stat: "16,000",    unit: "videos/min",    label: "TikTok users upload videos",              logo: "/icons/tiktok-icon-light.svg",       color: "#010101" },
@@ -25,19 +25,30 @@ const DOMO_STATS = [
   { stat: "229M",      unit: "minutes/day",   label: "Meeting minutes recorded on MSFT Teams",  logo: "/icons/microsoft-teams.svg",         color: "#6264A7" },
 ];
 
+const TOTAL = DOMO_STATS.length;
+const OFFSETS = [-1, 0, 1] as const;
+
 export function StatsCarousel() {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused]   = useState(false);
-  const total = DOMO_STATS.length;
 
   useEffect(() => {
     if (paused) return;
-    const t = setInterval(() => setCurrent((c) => (c + 1) % total), 2800);
+    const t = setInterval(() => setCurrent((c) => (c + 1) % TOTAL), 2800);
     return () => clearInterval(t);
-  }, [paused, total]);
+  }, [paused]);
 
-  const go = (idx: number) => setCurrent((idx + total) % total);
-  const getCard = (offset: number) => DOMO_STATS[(current + offset + total) % total];
+  const go = useCallback((idx: number) => setCurrent(((idx % TOTAL) + TOTAL) % TOTAL), []);
+
+  // Compute the three visible cards once per current change
+  const visibleCards = useMemo(
+    () => OFFSETS.map((offset) => ({
+      offset,
+      item: DOMO_STATS[(current + offset + TOTAL) % TOTAL],
+      isCenter: offset === 0,
+    })),
+    [current]
+  );
 
   return (
     <div
@@ -46,15 +57,15 @@ export function StatsCarousel() {
       onMouseLeave={() => setPaused(false)}
     >
       <div className="flex gap-4 items-center justify-center overflow-hidden px-12 py-4">
-        {[-1, 0, 1].map((offset) => {
-          const item = getCard(offset);
-          const isCenter = offset === 0;
-          return (
+        {visibleCards.map(({ offset, item, isCenter }) => (
             <div
-              key={`${current}-${offset}`}
+              key={offset}
               onClick={() => offset !== 0 && go(current + offset)}
-              className="transition-all duration-500 rounded-2xl flex-shrink-0 cursor-pointer flex flex-col"
+              className="rounded-2xl flex-shrink-0 cursor-pointer flex flex-col"
               style={{
+                // Only transition GPU-composited properties (opacity, transform)
+                // width/padding/background/border change instantly — avoids layout reflow every frame
+                transition: "opacity 500ms ease, transform 500ms ease",
                 width:   isCenter ? 280 : 220,
                 height:  168,
                 opacity: isCenter ? 1 : 0.45,
@@ -99,8 +110,7 @@ export function StatsCarousel() {
                 {item.label}
               </p>
             </div>
-          );
-        })}
+        ))}
       </div>
 
       <button onClick={() => go(current - 1)}
@@ -118,21 +128,28 @@ export function StatsCarousel() {
         </svg>
       </button>
 
+      {/* Pagination dots — fixed height 6px; only width & background transition (GPU-safe) */}
       <div className="flex justify-center gap-1.5 mt-5">
         {DOMO_STATS.map((_, i) => (
-          <button key={i} onClick={() => setCurrent(i)}
-            className="rounded-full transition-all duration-300"
+          <button
+            key={i}
+            onClick={() => setCurrent(i)}
             style={{
-              width:  i === current ? 20 : 6,
+              width: i === current ? 20 : 6,
               height: 6,
+              borderRadius: 9999,
               background: i === current ? "#06b6d4" : "#d1d5db",
+              padding: 0,
+              border: "none",
+              flexShrink: 0,
+              transition: "width 300ms ease, background 300ms ease",
             }}
           />
         ))}
       </div>
 
       <p className="text-center text-xs text-gray-400 mt-3">
-        {current + 1} / {total} · Source: DOMO Data Never Sleeps 12
+        {current + 1} / {TOTAL} · Source: DOMO Data Never Sleeps 12
       </p>
     </div>
   );

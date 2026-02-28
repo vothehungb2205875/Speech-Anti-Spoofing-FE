@@ -5,9 +5,6 @@
   --foreground: #171717;
 }
 
-html {
-  scroll-behavior: smooth;
-}
 
 body {
   background: var(--background);
@@ -29,20 +26,20 @@ body {
 
 .timeline-scroll::-webkit-scrollbar-thumb,
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #06b6d4 0%, #0891b2 100%);
+  background: #000000;
   border-radius: 10px;
   transition: all 0.3s ease;
 }
 
 .timeline-scroll::-webkit-scrollbar-thumb:hover,
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #22d3ee 0%, #06b6d4 100%);
+  background: #333333;
 }
 
 /* Firefox scrollbar */
 .timeline-scroll,
 .custom-scrollbar {
-  scrollbar-color: rgba(34, 211, 238, 0.6) rgba(255, 255, 255, 0.05);
+  scrollbar-color: #000000 rgba(0, 0, 0, 0.05);
   scrollbar-width: thin;
 }
 
@@ -61,3 +58,24 @@ body {
 .animate-fade-in-up {
   animation: fadeInUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
+
+/* VideoPlayer slide transition — defined here to avoid inline <style> re-parse on every render */
+@keyframes fadeInSlide {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* DownArrow bounce animation */
+@keyframes bounce-down-svg {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(6px); }
+}
+.arrow-animate {
+  animation: bounce-down-svg 2s infinite;
+}
+
+/* AudioSamples scrollbar */
+.audio-samples-container::-webkit-scrollbar { width: 8px; height: 8px; }
+.audio-samples-container::-webkit-scrollbar-track { background: #f3f4f6; border-radius: 4px; }
+.audio-samples-container::-webkit-scrollbar-thumb { background: #000; border-radius: 4px; }
+.audio-samples-container::-webkit-scrollbar-thumb:hover { background: #333; }

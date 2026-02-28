@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useScrollTo } from "@/hooks/useScrollTo";
 import { MobileMenu } from "./MobileMenu";
 
@@ -8,9 +8,15 @@ export function Navbar() {
   const scrollTo = useScrollTo();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const handleMenuToggle = useCallback(() => setIsMobileMenuOpen((v) => !v), []);
+  const handleMenuClose = useCallback(() => setIsMobileMenuOpen(false), []);
+
   return (
     <>
-      <header className="fixed w-full bg-[#020817]/80 backdrop-blur-md border-b border-white/8 z-50">
+      <header
+      className="fixed w-full bg-[#020817]/80 backdrop-blur-md border-b border-white/8 z-50"
+      style={{ willChange: "transform", transform: "translateZ(0)" }}
+    >
         <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
           <a href="/" className="font-bold text-lg md:text-xl text-white hover:text-cyan-400 transition-colors">YUNX DETEKTION</a>
 
@@ -46,7 +52,7 @@ export function Navbar() {
 
           {/* Mobile Hamburger Menu Button */}
           <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            onClick={handleMenuToggle}
             className="md:hidden flex flex-col gap-1.5 p-2"
             aria-label="Toggle menu"
           >
@@ -58,7 +64,7 @@ export function Navbar() {
       </header>
 
       {/* Mobile Menu */}
-      <MobileMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+      <MobileMenu isOpen={isMobileMenuOpen} onClose={handleMenuClose} />
     </>
   );
 }

@@ -1,7 +1,9 @@
 'use client';
 
+import { useCallback } from 'react';
+
 export function useScrollTo() {
-  return (e: React.MouseEvent<HTMLAnchorElement>) => {
+  return useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     const href = e.currentTarget.getAttribute("href");
     const id = href?.slice(1);
@@ -17,5 +19,5 @@ export function useScrollTo() {
         window.scrollTo({ top: elementPosition, behavior: "smooth" });
       }
     }
-  };
+  }, []);
 }

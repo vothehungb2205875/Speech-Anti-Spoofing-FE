@@ -9,52 +9,51 @@ import { DemoSection } from "@/components/home/DemoSection";
 import { TimelineSection } from "@/components/home/TimelineSection";
 import { FAQSection } from "@/components/home/FAQSection";
 
+const AUDIO_MIME_TYPES = new Set([
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+  "audio/flac",
+  "audio/m4a",
+  "audio/aac",
+  "audio/webm",
+]);
+
+const AUDIO_EXTENSIONS = [
+  ".mp3",
+  ".wav",
+  ".ogg",
+  ".flac",
+  ".m4a",
+  ".aac",
+  ".webm",
+  ".aiff",
+  ".wma",
+];
+
+const isAudioFile = (file: File): boolean => {
+  if (AUDIO_MIME_TYPES.has(file.type)) return true;
+  if (file.type.startsWith("audio/")) return true;
+  const fileName = file.name.toLowerCase();
+  return AUDIO_EXTENSIONS.some((ext) => fileName.endsWith(ext));
+};
+
+const hasAudioFiles = (dataTransfer: DataTransfer | null): boolean => {
+  if (!dataTransfer?.items) return false;
+  for (let i = 0; i < dataTransfer.items.length; i++) {
+    if (dataTransfer.items[i].kind === "file") {
+      const file = dataTransfer.items[i].getAsFile();
+      if (file && isAudioFile(file)) return true;
+    }
+  }
+  return false;
+};
+
 export function HomePageClient() {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
-    const isAudioFile = (file: File): boolean => {
-      const audioMimeTypes = [
-        "audio/mpeg",
-        "audio/wav",
-        "audio/ogg",
-        "audio/flac",
-        "audio/m4a",
-        "audio/aac",
-        "audio/webm",
-      ];
-      const audioExtensions = [
-        ".mp3",
-        ".wav",
-        ".ogg",
-        ".flac",
-        ".m4a",
-        ".aac",
-        ".webm",
-        ".aiff",
-        ".wma",
-      ];
-      
-      if (audioMimeTypes.includes(file.type)) return true;
-      if (file.type.startsWith("audio/")) return true;
-      
-      const fileName = file.name.toLowerCase();
-      return audioExtensions.some((ext) => fileName.endsWith(ext));
-    };
-
-    const hasAudioFiles = (dataTransfer: DataTransfer | null): boolean => {
-      if (!dataTransfer?.items) return false;
-      
-      for (let i = 0; i < dataTransfer.items.length; i++) {
-        if (dataTransfer.items[i].kind === "file") {
-          const file = dataTransfer.items[i].getAsFile();
-          if (file && isAudioFile(file)) return true;
-        }
-      }
-      return false;
-    };
-
     const onDragEnter = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -68,9 +67,8 @@ export function HomePageClient() {
     const onDragLeave = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      
-      // Only hide when leaving the window
-      if ((e as any).clientX === 0 && (e as any).clientY === 0) {
+      // relatedTarget is null only when the cursor leaves the browser window
+      if (e.relatedTarget === null) {
         setIsDragging(false);
       }
     };

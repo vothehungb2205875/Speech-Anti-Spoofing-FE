@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useScrollTo } from "@/hooks/useScrollTo";
@@ -9,14 +10,14 @@ interface MobileMenuProps {
   onClose: () => void;
 }
 
-export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
+export const MobileMenu = memo(function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
   const scrollTo = useScrollTo();
   const pathname = usePathname();
   const isHomePage = pathname === "/";
 
-  const handleNavClick = () => {
+  const handleNavClick = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   const sectionLinks = [
     { label: "Stats", href: "#stats" },
@@ -81,4 +82,4 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
       </div>
     </>
   );
-}
+});

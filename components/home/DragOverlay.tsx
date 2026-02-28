@@ -1,14 +1,12 @@
-"use client";
-
 export function DragOverlay({ isDragging }: { isDragging: boolean }) {
   return (
     <div
-      className="fixed inset-0 pointer-events-none transition-all duration-300"
+      className="fixed inset-0 pointer-events-none"
       style={{
         zIndex: 9999,
         opacity: isDragging ? 1 : 0,
         background: "rgba(2,8,23,0.78)",
-        backdropFilter: isDragging ? "blur(6px)" : "blur(0px)",
+        backdropFilter: isDragging ? "blur(6px)" : "none",
         transition: "opacity 200ms ease, backdrop-filter 200ms ease",
       }}
     >

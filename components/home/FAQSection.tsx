@@ -1,13 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useIntersectionAnimation } from "@/hooks/useIntersectionAnimation";
 
-export function FAQSection() {
-  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  const faqs = [
+const FAQS = [
     {
       question: "What is a speech deepfake?",
       answer:
@@ -48,7 +44,15 @@ export function FAQSection() {
       answer:
         "Yes, we offer a Detection API for enterprise customers. Our API allows integration into existing systems for automated deepfake detection. Contact our sales team for enterprise licensing and API documentation.",
     },
-  ];
+];
+
+export function FAQSection() {
+  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const toggleFAQ = useCallback((index: number) => {
+    setOpenIndex((prev) => (prev === index ? null : index));
+  }, []);
 
   return (
     <section id="faq" className="py-12 md:py-16 bg-white">
@@ -65,13 +69,13 @@ export function FAQSection() {
 
         {/* Accordion */}
         <div className="space-y-3 md:space-y-4">
-          {faqs.map((faq, index) => (
+          {FAQS.map((faq, index) => (
             <div
               key={index}
               className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
             >
               <button
-                onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                onClick={() => toggleFAQ(index)}
                 className="w-full px-6 py-4 md:py-5 flex items-start justify-between gap-4 text-left hover:bg-gray-50 transition-colors"
               >
                 <span className="font-semibold text-sm md:text-base text-gray-900 leading-relaxed">

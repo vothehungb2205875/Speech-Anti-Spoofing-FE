@@ -2,38 +2,20 @@
 
 import { useIntersectionAnimation } from "@/hooks/useIntersectionAnimation";
 
-export function TimelineSection() {
-  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
-  const milestones = [
+const MILESTONES = [
     { month: "12/2025", title: "Ideation", description: "Conceptualizing the project vision", isActive: false },
     { month: "1/2026", title: "Research Studies", description: "Reviewing existing research and frameworks", isActive: false },
     { month: "2/2026", title: "Architecture Research", description: "Designing system architecture", isActive: false },
     { month: "3/2026", title: "Model Training", description: "Training AI and ML models", isActive: false },
     { month: "4/2026", title: "Service Deployment", description: "Rolling out services to production", isActive: false },
     { month: "5/2026", title: "Service Testing", description: "Testing and optimization (Current)", isActive: true },
-  ];
+];
+
+export function TimelineSection() {
+  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
 
   return (
     <section id="timeline" className="py-12 md:py-16 bg-gray-100">
-      <style>{`
-        .timeline-scroll::-webkit-scrollbar {
-          height: 8px;
-        }
-        .timeline-scroll::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.1);
-        }
-        .timeline-scroll::-webkit-scrollbar-thumb {
-          background: #000;
-          border-radius: 4px;
-        }
-        .timeline-scroll::-webkit-scrollbar-thumb:hover {
-          background: #333;
-        }
-        .timeline-scroll {
-          scrollbar-color: #000 rgba(0, 0, 0, 0.1);
-          scrollbar-width: thin;
-        }
-      `}</style>
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div ref={titleRef} className={titleVisible ? "animate-fade-in-up" : "opacity-0"}>
           <h3 className="text-2xl sm:text-3xl font-bold mb-3 md:mb-4 text-center">Development Roadmap</h3>
@@ -47,7 +29,7 @@ export function TimelineSection() {
 
           {/* Timeline Items */}
           <div className="flex justify-between gap-2 md:gap-4 relative z-10 min-w-max md:min-w-full">
-            {milestones.map((milestone, index) => (
+            {MILESTONES.map((milestone, index) => (
               <div key={index} className="flex-shrink-0 w-28 md:flex-1 md:flex-shrink md:w-auto flex flex-col items-center">
                 {/* Timeline Node */}
                 <div

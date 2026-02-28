@@ -1,4 +1,6 @@
-// Server Component - Purely presentational
+"use client";
+
+import { memo } from "react";
 import { WaveCanvas } from "./WaveCanvas";
 import { DownArrow } from "./DownArrow";
 
@@ -7,7 +9,7 @@ interface HeroSectionContentProps {
   onLearnMoreClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
-export function HeroSectionContent({
+export const HeroSectionContent = memo(function HeroSectionContent({
   onTryDetectionClick,
   onLearnMoreClick,
 }: HeroSectionContentProps) {
@@ -56,4 +58,4 @@ export function HeroSectionContent({
       </div>
     </section>
   );
-}
+});

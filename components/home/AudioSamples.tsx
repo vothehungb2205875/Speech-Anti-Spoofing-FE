@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 interface AudioSample {
   id: number;
@@ -50,11 +50,15 @@ const audioTabs: AudioTab[] = [
 export function AudioSamples() {
   const audioRefs = useRef<{ [key: number]: HTMLAudioElement | null }>({});
   const progressRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
+  const endedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeTab, setActiveTab] = useState(1);
   const [isPlaying, setIsPlaying] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState<{ [key: number]: number }>({});
   const [duration, setDuration] = useState<{ [key: number]: number }>({});
   const [isDragging, setIsDragging] = useState<number | null>(null);
+
+  // Cleanup setTimeout on unmount
+  useEffect(() => () => { if (endedTimerRef.current) clearTimeout(endedTimerRef.current); }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -85,7 +89,7 @@ export function AudioSamples() {
     }
   }, [isDragging, duration]);
 
-  const handlePlay = (id: number) => {
+  const handlePlay = useCallback((id: number) => {
     const audio = audioRefs.current[id];
     if (audio) {
       if (isPlaying === id) {
@@ -98,33 +102,32 @@ export function AudioSamples() {
         setIsPlaying(id);
       }
     }
-  };
+  }, [isPlaying]);
 
-  const handleTimeUpdate = (id: number) => {
+  const handleTimeUpdate = useCallback((id: number) => {
     const audio = audioRefs.current[id];
     if (audio) {
       setCurrentTime((prev) => ({ ...prev, [id]: audio.currentTime }));
     }
-  };
+  }, []);
 
-  const handleLoadedMetadata = (id: number) => {
+  const handleLoadedMetadata = useCallback((id: number) => {
     const audio = audioRefs.current[id];
-    if (audio) {
+    if (audio && isFinite(audio.duration) && audio.duration > 0) {
       setDuration((prev) => ({ ...prev, [id]: audio.duration }));
     }
-  };
+  }, []);
 
-  const handleEnded = (id: number) => {
+  const handleEnded = useCallback((id: number) => {
     setIsPlaying(null);
-    // Set to full duration first to show 100% on progress bar
     setCurrentTime((prev) => ({ ...prev, [id]: duration[id] || 0 }));
-    // Reset after a short delay to show completion
-    setTimeout(() => {
+    if (endedTimerRef.current) clearTimeout(endedTimerRef.current);
+    endedTimerRef.current = setTimeout(() => {
       setCurrentTime((prev) => ({ ...prev, [id]: 0 }));
     }, 500);
-  };
+  }, [duration]);
 
-  const handleProgressClick = (id: number, e: React.MouseEvent<HTMLDivElement>) => {
+  const handleProgressClick = useCallback((id: number, e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRefs.current[id];
     if (audio) {
       const rect = e.currentTarget.getBoundingClientRect();
@@ -132,40 +135,23 @@ export function AudioSamples() {
       audio.currentTime = percent * (duration[id] || 0);
       setCurrentTime((prev) => ({ ...prev, [id]: audio.currentTime }));
     }
-  };
+  }, [duration]);
 
-  const handleProgressMouseDown = (id: number, e: React.MouseEvent<HTMLDivElement>) => {
+  const handleProgressMouseDown = useCallback((id: number, e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(id);
     handleProgressClick(id, e);
-  };
+  }, [handleProgressClick]);
 
-  const formatTime = (time: number) => {
+  const formatTime = useCallback((time: number) => {
     if (!time) return "0:00";
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
+  }, []);
 
   return (
     <>
-      <style>{`
-        .audio-samples-container::-webkit-scrollbar {
-          width: 8px;
-          height: 8px;
-        }
-        .audio-samples-container::-webkit-scrollbar-track {
-          background: #f3f4f6;
-          border-radius: 4px;
-        }
-        .audio-samples-container::-webkit-scrollbar-thumb {
-          background: #000;
-          border-radius: 4px;
-        }
-        .audio-samples-container::-webkit-scrollbar-thumb:hover {
-          background: #333;
-        }
-      `}</style>
       <div className="audio-samples-container">
         <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
           Deepfake Audio Samples
@@ -273,11 +259,20 @@ export function AudioSamples() {
             <audio
               key={sample.id}
               ref={(el) => {
-                if (el) audioRefs.current[sample.id] = el;
+                if (!el) return;
+                audioRefs.current[sample.id] = el;
+                // If metadata already loaded (e.g. from browser cache), read duration immediately
+                if (el.readyState >= 1 && isFinite(el.duration) && el.duration > 0) {
+                  setDuration((prev) =>
+                    prev[sample.id] === el.duration ? prev : { ...prev, [sample.id]: el.duration }
+                  );
+                }
               }}
               src={sample.src}
-              onTimeUpdate={() => handleTimeUpdate(sample.id)}
+              preload="metadata"
               onLoadedMetadata={() => handleLoadedMetadata(sample.id)}
+              onDurationChange={() => handleLoadedMetadata(sample.id)}
+              onTimeUpdate={() => handleTimeUpdate(sample.id)}
               onEnded={() => handleEnded(sample.id)}
             />
           ))

@@ -1,4 +1,6 @@
-// Server Component - Purely presentational
+"use client";
+
+import { memo } from "react";
 import { StatsCarousel } from "./StatsCarousel";
 import { DownArrow } from "./DownArrow";
 
@@ -7,7 +9,7 @@ interface StatsSectionContentProps {
   titleAnimationClass?: string;
 }
 
-export function StatsSectionContent({ onTryDetectionClick, titleAnimationClass = "" }: StatsSectionContentProps) {
+export const StatsSectionContent = memo(function StatsSectionContent({ onTryDetectionClick, titleAnimationClass = "" }: StatsSectionContentProps) {
   return (
     <section id="stats" className="py-12 md:py-16 bg-white overflow-hidden">
       <div className="max-w-6xl mx-auto px-6">
@@ -55,4 +57,4 @@ export function StatsSectionContent({ onTryDetectionClick, titleAnimationClass =
       </div>
     </section>
   );
-}
+});

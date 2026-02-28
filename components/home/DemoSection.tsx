@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useIntersectionAnimation } from "@/hooks/useIntersectionAnimation";
 import axios from "axios";
 import { HelpCircle } from "lucide-react";
 import { VideoPlayer } from "./VideoPlayer";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const VALID_AUDIO_TYPES = ["audio/mpeg", "audio/wav", "audio/flac", "audio/mp4", "audio/ogg", "audio/webm"];
+const VALID_EXTENSIONS = [".mp3", ".wav", ".flac", ".m4a", ".ogg"];
 
 interface DemoSectionProps {
   file: File | null;
@@ -44,7 +48,6 @@ const Tooltip = ({ text }: { text: string }) => {
       onMouseLeave={handleMouseLeave}
     >
       <HelpCircle className="w-4 h-4 text-gray-400 hover:text-cyan-600 transition-colors cursor-help" />
-
       {isVisible && (
         <span
           className="fixed px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-100 transition-opacity z-50 pointer-events-none"
@@ -58,16 +61,179 @@ const Tooltip = ({ text }: { text: string }) => {
           {text}
           <span
             className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"
-            style={{
-              left: "50%",
-              display: "block",
-            }}
+            style={{ left: "50%", display: "block" }}
           ></span>
         </span>
       )}
     </span>
   );
 };
+
+// --------------------------------
+// Inline audio preview player
+// --------------------------------
+function AudioPreview({ file }: { file: File }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  const endedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Cleanup timer on unmount
+  useEffect(() => () => { if (endedTimerRef.current) clearTimeout(endedTimerRef.current); }, []);
+
+  // Create / revoke object URL when file changes
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setObjectUrl(url);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  // Global drag tracking
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const audio = audioRef.current;
+      const bar = progressRef.current;
+      if (!audio || !bar || !duration) return;
+      const rect = bar.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      audio.currentTime = pct * duration;
+      setCurrentTime(audio.currentTime);
+    };
+    const handleMouseUp = () => setIsDragging(false);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, duration]);
+
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+    setIsPlaying(!isPlaying);
+  }, [isPlaying]);
+
+  const handleTimeUpdate = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio) setCurrentTime(audio.currentTime);
+  }, []);
+
+  const handleLoadedMetadata = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio && isFinite(audio.duration)) setDuration(audio.duration);
+  }, []);
+
+  const handleEnded = useCallback(() => {
+    setIsPlaying(false);
+    setCurrentTime(duration);
+    if (endedTimerRef.current) clearTimeout(endedTimerRef.current);
+    endedTimerRef.current = setTimeout(() => {
+      setCurrentTime(0);
+      if (audioRef.current) audioRef.current.currentTime = 0;
+    }, 500);
+  }, [duration]);
+
+  const handleProgressMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const audio = audioRef.current;
+    const bar = progressRef.current;
+    if (!audio || !bar || !duration) return;
+    const rect = bar.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = pct * duration;
+    setCurrentTime(audio.currentTime);
+  }, [duration]);
+
+  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    const bar = progressRef.current;
+    if (!audio || !bar || !duration) return;
+    const rect = bar.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = pct * duration;
+    setCurrentTime(audio.currentTime);
+  }, [duration]);
+
+  const fmt = (t: number) => {
+    if (!isFinite(t) || t < 0) return "0:00";
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const progress = duration ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl">
+      {/* Play/Pause button */}
+      <button
+        type="button"
+        onClick={togglePlay}
+        className="flex-shrink-0 w-10 h-10 rounded-full bg-black hover:bg-gray-800 text-white flex items-center justify-center transition-colors cursor-pointer"
+        aria-label={isPlaying ? "Pause" : "Play"}
+      >
+        {isPlaying ? (
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zm5.5 0a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 0012.75 3h-1.5z"/>
+          </svg>
+        ) : (
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
+          </svg>
+        )}
+      </button>
+
+      {/* Progress + time */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <span className="text-xs font-medium text-gray-600 truncate">{file.name}</span>
+          <span className="text-xs text-gray-500 flex-shrink-0">
+            {fmt(currentTime)} / {fmt(duration)}
+          </span>
+        </div>
+        <div
+          ref={progressRef}
+          onMouseDown={handleProgressMouseDown}
+          onClick={handleProgressClick}
+          className={`w-full h-2 bg-gray-200 rounded-full cursor-pointer overflow-hidden transition-all ${
+            isDragging ? "h-3" : "hover:h-3"
+          }`}
+        >
+          <div
+            className="h-full bg-black"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {objectUrl && (
+        <audio
+          ref={audioRef}
+          src={objectUrl}
+          preload="metadata"
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={handleEnded}
+        />
+      )}
+    </div>
+  );
+}
 
 export function DemoSection({ file, setFile }: DemoSectionProps) {
   const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
@@ -77,15 +243,12 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingValid, setIsDraggingValid] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-  const VALID_AUDIO_TYPES = ["audio/mpeg", "audio/wav", "audio/flac", "audio/mp4", "audio/ogg", "audio/webm"];
-  const VALID_EXTENSIONS = [".mp3", ".wav", ".flac", ".m4a", ".ogg"];
 
   useEffect(() => {
     setResult(null);
   }, [file]);
 
-  const validateFile = (selectedFile: File): boolean => {
+  const validateFile = useCallback((selectedFile: File): boolean => {
     const fileName = selectedFile.name.toLowerCase();
     const hasValidExtension = VALID_EXTENSIONS.some(ext => fileName.endsWith(ext));
     const hasValidType = VALID_AUDIO_TYPES.includes(selectedFile.type);
@@ -102,9 +265,9 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
     }
     setError("");
     return true;
-  };
+  }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (validateFile(selectedFile)) {
@@ -117,19 +280,19 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
         }
       }
     }
-  };
+  }, [validateFile, setFile]);
 
-  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     e.stopPropagation();
-  };
+  }, []);
 
-  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     e.stopPropagation();
-  };
+  }, []);
 
-  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     e.stopPropagation();
     const droppedFiles = e.dataTransfer.files;
@@ -143,9 +306,9 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
       }
     }
     setIsDragging(false);
-  };
+  }, [validateFile, setFile]);
 
-  const handleSectionDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleSectionDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
@@ -158,18 +321,18 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
       setIsDraggingValid(false);
       e.dataTransfer.dropEffect = 'none';
     }
-  };
+  }, []);
 
-  const handleSectionDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleSectionDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     if (e.currentTarget === e.target) {
       setIsDragging(false);
       setIsDraggingValid(true);
     }
-  };
+  }, []);
 
-  const handleSectionDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleSectionDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
@@ -184,9 +347,9 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
         setFile(null);
       }
     }
-  };
+  }, [validateFile, setFile]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!file) return;
     
@@ -199,8 +362,7 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
     const formData = new FormData();
     formData.append("audio_file", file);
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/`, formData);
-      //const res = await axios.post(`http://localhost:8000/`, formData);
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/`, formData);
       setResult(res.data);
     } catch (err: any) {
       console.error(err);
@@ -214,14 +376,14 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [file, validateFile]);
 
   const isReal = result?.predicted_label === "bonafide";
 
   return (
     <section 
       id="demo" 
-      className="py-16 md:py-24 bg-white relative"
+      className="py-6 md:py-8 bg-white relative min-h-[calc(100svh-4rem)] flex items-center"
       onDragOver={handleSectionDragOver}
       onDragLeave={handleSectionDragLeave}
       onDrop={handleSectionDrop}
@@ -235,7 +397,7 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
       )}
       
       {isDragging && isDraggingValid && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center pointer-events-none">
+        <div className="fixed inset-0 bg-black/30 z-40 flex items-center justify-center pointer-events-none" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
           <div className="bg-white rounded-2xl p-8 text-center shadow-2xl">
             <svg className="w-16 h-16 text-cyan-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
@@ -245,15 +407,15 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
           </div>
         </div>
       )}
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 px-6">
+      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8 px-6 w-full items-start">
         <div>
-          <h3 ref={titleRef} className={`text-4xl md:text-5xl font-bold mb-6 text-cyan-600 ${titleVisible ? "animate-fade-in-up" : "opacity-0"}`}>Free Deepfake Voice Detection</h3>
-          <p className="text-gray-600 mb-6">
+          <h3 ref={titleRef} className={`text-3xl md:text-4xl font-bold mb-3 text-cyan-600 ${titleVisible ? "animate-fade-in-up" : "opacity-0"}`}>Free Deepfake Voice Detection</h3>
+          <p className="text-gray-600 text-sm mb-3">
             Test our detection engine at no cost - Free trial available until May 31, 2026.
           </p>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <label
-              className="border-2 border-dashed rounded-xl p-6 cursor-pointer flex flex-col items-center gap-2 bg-white transition-colors"
+              className="border-2 border-dashed rounded-xl p-3 cursor-pointer flex flex-col items-center gap-2 bg-white transition-colors"
               style={{ borderColor: file ? "#22c55e" : "#d1d5db" }}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -297,6 +459,9 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
               )}
             </label>
 
+            {/* Audio preview player — shown as soon as a file is picked */}
+            {file && <AudioPreview file={file} />}
+
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
                 <svg className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -323,8 +488,8 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
             </button>
           </form>
 
-          <div className="mt-4 rounded-xl border overflow-hidden transition-all duration-300"
-            style={{ minHeight: 140, background: result ? "white" : "#f9fafb", borderColor: result ? (isReal ? "#bbf7d0" : "#fecaca") : "#e5e7eb" }}
+          <div className="mt-3 rounded-xl border overflow-hidden transition-all duration-300"
+            style={{ minHeight: 100, background: result ? "white" : "#f9fafb", borderColor: result ? (isReal ? "#bbf7d0" : "#fecaca") : "#e5e7eb" }}
           >
             {result ? (
               <div className="p-5">
@@ -385,7 +550,7 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
                 </div>
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-2 py-10 text-gray-300">
+              <div className="h-full flex flex-col items-center justify-center gap-2 py-5 text-gray-300">
                 <svg width="32" height="20" viewBox="0 0 40 24" fill="none">
                   <rect x="0"  y="10" width="3" height="4"  rx="1.5" fill="#d1d5db"/>
                   <rect x="5"  y="6"  width="3" height="12" rx="1.5" fill="#d1d5db"/>
@@ -401,7 +566,7 @@ export function DemoSection({ file, setFile }: DemoSectionProps) {
             )}
           </div>
         </div>
-        <div className="h-80">
+        <div className="self-center">
           <VideoPlayer />
         </div>
       </div>

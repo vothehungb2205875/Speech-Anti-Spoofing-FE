@@ -1,15 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useIntersectionAnimation } from "@/hooks/useIntersectionAnimation";
 import { AudioSamples } from "./AudioSamples";
 import { DollarSign, Shield, Heart, Film, Scale, Briefcase, X, ExternalLink } from "lucide-react";
 
-export function AboutSection() {
-  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const industriesData = [
+const INDUSTRIES_DATA = [
     {
       id: "banking",
       title: "Banking & Finance",
@@ -58,7 +54,15 @@ export function AboutSection() {
       story: "In 2019, the CEO of a British energy company was tricked into transferring $243,000 (about €220,000) through just one phone call. The scammer used AI to clone the voice of the parent company's CEO in Germany, pretending to issue an urgent order to transfer money to a 'Hungarian supplier'. This was one of the first successful deepfake voice cases recorded, proving that a fake voice alone is enough for senior employees to follow orders without needing to meet in person.",
       link: "https://www.wsj.com/articles/fraudsters-use-ai-to-mimic-ceos-voice-in-unusual-cybercrime-case-11567157402",
     },
-  ];
+];
+
+export function AboutSection() {
+  const { ref: titleRef, isVisible: titleVisible } = useIntersectionAnimation();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const handleClose = useCallback(() => setExpandedId(null), []);
+  const handleExpand = useCallback((id: string) => setExpandedId(id), []);
+
   return (
     <section id="about" className="py-12 md:py-16 bg-gray-100">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8">
@@ -124,13 +128,14 @@ export function AboutSection() {
           {/* Industries Icon Grid */}
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
             {expandedId ? (
-              // Expanded View
-              <div className="sm:col-span-2 md:col-span-3 rounded-xl p-6 md:p-8 bg-white border border-cyan-400 shadow-lg">
-                {industriesData.map((industry) => {
-                  if (industry.id !== expandedId) return null;
-                  const IconComponent = industry.icon;
-                  return (
-                    <div key={industry.id} className="space-y-4">
+              // Expanded View — use find() instead of mapping all items
+              (() => {
+                const industry = INDUSTRIES_DATA.find((i) => i.id === expandedId);
+                if (!industry) return null;
+                const IconComponent = industry.icon;
+                return (
+                  <div className="sm:col-span-2 md:col-span-3 rounded-xl p-6 md:p-8 bg-white border border-cyan-400 shadow-lg">
+                    <div className="space-y-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-4">
                           <div className="text-cyan-600">
@@ -142,7 +147,7 @@ export function AboutSection() {
                           </div>
                         </div>
                         <button
-                          onClick={() => setExpandedId(null)}
+                          onClick={handleClose}
                           className="flex-shrink-0 p-2 hover:bg-gray-100 rounded-lg transition-colors"
                           aria-label="Close"
                         >
@@ -163,25 +168,25 @@ export function AboutSection() {
                           <ExternalLink className="w-4 h-4" />
                         </a>
                         <button
-                          onClick={() => setExpandedId(null)}
+                          onClick={handleClose}
                           className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-colors"
                         >
                           Close
                         </button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })()
             ) : (
               // Grid View
-              industriesData.map((industry) => {
+              INDUSTRIES_DATA.map((industry) => {
                 const IconComponent = industry.icon;
                 return (
                   <button
                     key={industry.id}
-                    onClick={() => setExpandedId(industry.id)}
-                    className="rounded-xl p-6 md:p-8 bg-gray-50 border border-gray-200 hover:border-cyan-400 hover:bg-cyan-50 transition-all min-h-48 flex flex-col items-center justify-center text-center group cursor-pointer"
+                    onClick={() => handleExpand(industry.id)}
+                    className="rounded-xl p-6 md:p-8 bg-gray-50 border border-gray-200 hover:border-cyan-400 hover:bg-cyan-50 min-h-48 flex flex-col items-center justify-center text-center group cursor-pointer" style={{ transition: 'border-color 200ms ease, background-color 200ms ease' }}
                   >
                     <IconComponent className="w-12 h-12 text-gray-800 group-hover:text-cyan-600 transition-colors mb-4" />
                     <h4 className="font-semibold text-base md:text-lg text-gray-900 mb-2">{industry.title}</h4>
